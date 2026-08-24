@@ -1,0 +1,144 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserType {
+  INDIVIDUAL
+  FARMER
+  SHOP
+  FACTORY
+  SERVICE_PROVIDER
+  BUSINESS
+  ADMIN
+}
+
+enum ListingType {
+  PRODUCT
+  SERVICE
+}
+
+enum Status {
+  ACTIVE
+  PENDING
+  SOLD
+  EXPIRED
+  DELETED
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  password      String
+  phone         String?   @unique
+  image         String?
+  role          UserType  @default(INDIVIDUAL)
+  isVerified    Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relationships
+  listings      Listing[]
+  requests      Request[]
+  offers        Offer[]
+  reviewsSent   Review[]  @relation("ReviewsSent")
+  reviewsRec    Review[]  @relation("ReviewsReceived")
+  conversations Conversation[]
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  slug        String    @unique
+  listings    Listing[]
+  requests    Request[]
+}
+
+model Listing {
+  id              String      @id @default(cuid())
+  title           String
+  description     String      @db.Text
+  price           Float
+  priceType       String      @default("FIXED") // FIXED, NEGOTIABLE, PER_UNIT
+  currency        String      @default("RWF")
+  type            ListingType @default(PRODUCT)
+  quantity        Int?
+  unit            String?     // kg, pieces, liters
+  location        String
+  images          String[]
+  isNegotiable    Boolean     @default(true)
+  status          Status      @default(ACTIVE)
+  isUrgent        Boolean     @default(false)
+  expiryDate      DateTime?
+  
+  userId          String
+  user            User        @relation(fields: [userId], references: [id])
+  
+  categoryId      String
+  category        Category    @relation(fields: [categoryId], references: [id])
+  
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+}
+
+model Request {
+  id              String      @id @default(cuid())
+  title           String
+  description     String      @db.Text
+  targetPrice     Float?
+  quantity        Int?
+  unit            String?
+  location        String
+  deadline        DateTime?
+  status          Status      @default(ACTIVE)
+  
+  userId          String
+  user            User        @relation(fields: [userId], references: [id])
+  
+  categoryId      String
+  category        Category    @relation(fields: [categoryId], references: [id])
+
+  createdAt       DateTime    @default(now())
+}
+
+model Conversation {
+  id        String    @id @default(cuid())
+  users     User[]
+  messages  Message[]
+  createdAt DateTime  @default(now())
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  text           String       @db.Text
+  senderId       String
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  createdAt      DateTime     @default(now())
+}
+
+model Offer {
+  id        String   @id @default(cuid())
+  amount    Float
+  quantity  Int
+  status    String   @default("PENDING") // PENDING, ACCEPTED, DECLINED
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model Review {
+  id              String   @id @default(cuid())
+  rating          Int
+  comment         String?
+  reviewerId      String
+  reviewer        User     @relation("ReviewsSent", fields: [reviewerId], references: [id])
+  receiverId      String
+  receiver        User     @relation("ReviewsReceived", fields: [receiverId], references: [id])
+  createdAt       DateTime @default(now())
+}
